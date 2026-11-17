@@ -911,7 +911,7 @@ html[data-radio-theme="light"] .panel,html[data-radio-theme="light"] .top{box-sh
       <button class="chat-channel" data-channel="civil1" type="button"><span class="chat-channel-hash">#</span><span class="chat-channel-name">Civil 1</span><span class="chat-channel-unread" data-channel-unread="civil1" hidden>0</span></button>
       <button class="chat-channel" data-channel="civil2" type="button"><span class="chat-channel-hash">#</span><span class="chat-channel-name">Civil 2</span><span class="chat-channel-unread" data-channel-unread="civil2" hidden>0</span></button>
       <button class="chat-channel" data-channel="civil3" type="button"><span class="chat-channel-hash">#</span><span class="chat-channel-name">Civil 3</span><span class="chat-channel-unread" data-channel-unread="civil3" hidden>0</span></button>
-      <button class="chat-channel" data-channel="observations" type="button"><span class="chat-channel-hash">#</span><span class="chat-channel-name">Alertes ALPR/Radar</span><span class="chat-channel-unread" data-channel-unread="observations" hidden>0</span></button>
+      <button class="chat-channel" data-channel="observations" type="button"><span class="chat-channel-hash">#</span><span class="chat-channel-name">Alertes</span><span class="chat-channel-unread" data-channel-unread="observations" hidden>0</span></button>
     </div>
     <div class="chat-sidebar-bottom">
       <button aria-label="Paramètres du tchat" class="chat-settings-entry" id="chatSettingsEntry" type="button">
@@ -936,7 +936,8 @@ html[data-radio-theme="light"] .panel,html[data-radio-theme="light"] .top{box-sh
       <div class="chat-composer-area" id="chatComposerArea">
         <div class="chat-civil-tools" id="chatCivilTools" hidden>
           <button class="chat-report-btn" id="chatHitAlprBtn" type="button"><span class="chat-report-icon">ALPR</span><span>Hit ALPR</span></button>
-          <button class="chat-report-btn" id="chatRadarBtn" type="button"><span class="chat-report-icon">RAD</span><span>Radar</span></button>
+          <button class="chat-report-btn" id="chatRadarBtn" type="button"><span class="chat-report-icon">RAD</span><span>Hit Radar</span></button>
+          <button class="chat-report-btn chat-report-btn-observation" id="chatObservationBtn" type="button"><span class="chat-report-icon">OBS</span><span>Observation</span></button>
         </div>
         <div class="chat-reply-preview" id="chatReplyPreview" hidden>
           <div class="chat-reply-copy"><span>Réponse à</span><strong id="chatReplyAuthor"></strong><small id="chatReplyText"></small></div>
@@ -967,8 +968,17 @@ html[data-radio-theme="light"] .panel,html[data-radio-theme="light"] .top{box-sh
         <div class="chat-settings-intro"><div><span class="chat-settings-eyebrow">PERSONNALISATION</span><h2>Paramètres du tchat</h2></div><button aria-label="Quitter les paramètres" class="chat-icon-btn chat-settings-close" id="chatSettingsClose" title="Retour au tchat" type="button"><svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/><path d="M9 12h11"/></svg></button></div>
         <div class="chat-settings-card">
           <label for="chatDisplayName">Nom d’affichage</label>
-          <input id="chatDisplayName" maxlength="40" placeholder="Utiliser le nom de la plateforme" autocomplete="off"/>
-          <p>Ce nom apparaîtra sur tes prochains messages.</p>
+          <input id="chatDisplayName" maxlength="40" placeholder="Nom utilisé par défaut" autocomplete="off"/>
+          <p>Laisse ce champ vide pour utiliser automatiquement ton Call-Sign côté FDO ou « Civil » côté Civil.</p>
+        </div>
+        <div class="chat-settings-card">
+          <label for="chatNotificationMode">Notifications</label>
+          <select id="chatNotificationMode">
+            <option value="all">Tous les messages</option>
+            <option value="mentions">Mention Seulement</option>
+            <option value="muted">En Sourdine</option>
+          </select>
+          <p>Les pastilles signalent toujours les messages non lus. Ce réglage contrôle uniquement les notifications sonores.</p>
         </div>
         <div class="chat-settings-card">
           <strong>Couleur du tchat</strong>
@@ -993,12 +1003,18 @@ html[data-radio-theme="light"] .panel,html[data-radio-theme="light"] .top{box-sh
 
 <div aria-hidden="true" aria-labelledby="chatReportTitle" aria-modal="true" class="chat-report-modal" id="chatReportModal" role="dialog" hidden>
   <form class="chat-report-sheet" id="chatReportForm">
-    <div class="chat-report-sheet-head"><div><span class="chat-report-kicker">ALERTES ALPR / RADAR</span><h2 id="chatReportTitle">Nouveau hit ALPR</h2></div><button aria-label="Fermer" class="chat-icon-btn" id="chatReportClose" type="button"><svg viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div>
-    <label for="chatReportBrand">Marque et modèle</label><input id="chatReportBrand" maxlength="80" placeholder="Ex. Ford Explorer" required/>
-    <label for="chatReportPlate">Plaque</label><input id="chatReportPlate" maxlength="20" placeholder="Ex. 8ABC123" required/>
-    <label for="chatReportColor">Couleur</label><input id="chatReportColor" maxlength="40" placeholder="Ex. Noir" required/>
-    <label for="chatReportDetails">Détails</label><textarea id="chatReportDetails" maxlength="400" placeholder="Informations complémentaires…" rows="3" required></textarea>
-    <label for="chatReportTarget">Mentionner un utilisateur FDO connecté</label><select id="chatReportTarget" required><option value="">Sélectionner un membre FDO…</option></select><small class="chat-report-target-hint" id="chatReportTargetHint" aria-live="polite">Un membre FDO doit être connecté pour publier cette alerte.</small>
+    <div class="chat-report-sheet-head"><div><span class="chat-report-kicker">ALERTES</span><h2 id="chatReportTitle">Nouveau hit ALPR</h2></div><button aria-label="Fermer" class="chat-icon-btn" id="chatReportClose" type="button"><svg viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div>
+    <div id="chatReportVehicleFields">
+      <label for="chatReportBrand">Marque et modèle</label><input id="chatReportBrand" maxlength="80" placeholder="Ex. Ford Explorer" required/>
+      <label for="chatReportPlate">Plaque</label><input id="chatReportPlate" maxlength="20" placeholder="Ex. 8ABC123" required/>
+      <label for="chatReportColor">Couleur</label><input id="chatReportColor" maxlength="40" placeholder="Ex. Noir" required/>
+      <label for="chatReportDetails">Détails</label><textarea id="chatReportDetails" maxlength="400" placeholder="Informations complémentaires…" rows="3" required></textarea>
+    </div>
+    <div id="chatObservationFields" hidden>
+      <label for="chatReportObservation">Observation</label>
+      <textarea id="chatReportObservation" maxlength="500" placeholder="Décrire l’observation…" rows="4"></textarea>
+    </div>
+    <label for="chatReportTarget" id="chatReportTargetLabel">Mentionner un utilisateur FDO connecté [obligatoire]</label><select id="chatReportTarget" required><option value="">Sélectionner un membre FDO…</option></select><small class="chat-report-target-hint" id="chatReportTargetHint" aria-live="polite">Un membre FDO doit être connecté pour publier cette alerte.</small>
     <div class="chat-report-actions"><button class="chat-report-cancel" id="chatReportCancel" type="button">Annuler</button><button class="chat-report-submit" id="chatReportSubmit" type="submit" disabled>Publier le signalement</button></div>
   </form>
 </div>
@@ -1102,6 +1118,18 @@ function noiseBuf(d,k){var n=Math.floor(ctx.sampleRate*d),b=ctx.createBuffer(1,n
  function loadAlertBuffer(id){if(!ctx||alertBuffers[id])return;var a=$(id),url=a&&a.getAttribute('src');if(url&&url.indexOf('data:audio/')===0)decodeDataUrl(url,function(b){alertBuffers[id]=b;alertNorm[id]=normFor(b)})}
  function playBuffer(buf,norm,volume,delay){if(!ctx||!buf)return;var src=ctx.createBufferSource(),g=ctx.createGain();src.buffer=buf;g.gain.value=Math.max(0,Math.min(4,(norm||1)*(volume===undefined?1:volume)));src.connect(g);g.connect(sfx);src.start(ctx.currentTime+(delay||0))}
  function playToneCategory(cat,volume,force){if((cat==="push"||cat==="end")&&cfg.tones[cat]==="none")return;if(!st.on&&!force)return;loadTone(cat,function(b){if(b&&(st.on||force)){var pv=cfg.alert*(volume===undefined?1:volume);playBuffer(b,toneNorm[cat]||1,pv);if(cat==="panic"&&cfg.tones.panic==="panic2")playBuffer(b,toneNorm[cat]||1,pv,b.duration+2);return}var k={push:'push',busy:'busy',end:'end',notif:'notif',panic:'panic'}[cat];if(bufs[k])sfxPlay(k,0,volume)})}
+ /* Interface publique utilisée par le tchat Actions pour jouer le son de notification dans le même contexte audio que la radio. */
+ window.mishapPlayChatNotificationSound=function(){
+   try{
+     var c=ac();if(!c)return false;
+     var play=function(){try{playToneCategory("notif",1,true)}catch(e){}};
+     if(c.state==="suspended"&&typeof c.resume==="function"){
+       var resumed=c.resume();
+       if(resumed&&typeof resumed.then==="function"){resumed.then(play,play);return true}
+     }
+     play();return true;
+   }catch(e){return false}
+ };
  function playAlertBuffer(id,volume,force){if(!st.on&&!force)return;loadAlertBuffer(id);if(alertBuffers[id]){playBuffer(alertBuffers[id],alertNorm[id],cfg.alert*volume);return}playAudioElement(id,cfg.alert*volume,force)}
 function tone(f,d,v,delay,type){var c=ac();if(!c)return;v*=cfg.alert;var o=c.createOscillator(),g=c.createGain(),s=c.currentTime+(delay||0);o.type=type||"sine";o.frequency.value=f;
   g.gain.setValueAtTime(0,s);g.gain.linearRampToValueAtTime(v,s+.004);g.gain.setValueAtTime(v,s+d-.006);g.gain.linearRampToValueAtTime(0,s+d);o.connect(g);g.connect(fx);o.start(s);o.stop(s+d+.02)}
@@ -1124,7 +1152,10 @@ function playNotif(){playToneCategory("notif")}
 function isTouchAudio(){return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent||"")||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1)}
  function sndClick(){var c=ac(),touch=isTouchAudio(),clickVol=Math.min(touch?0.10:0.28,Math.max(0,cfg.alert*(touch?0.10:0.28)));if(c&&c.state==="running"&&bufs.click){playBuffer(bufs.click,bufNorm.click||1,clickVol);return}if(clickFallback){try{clickFallback.pause();clickFallback.currentTime=0;clickFallback.volume=clickVol;var p=clickFallback.play();if(p&&p.catch)p.catch(function(){wakeAudio()});return}catch(e){}}if(c&&bufs.click)playBuffer(bufs.click,bufNorm.click||1,Math.min(clickVol,0.08))}
  function wakeAudio(){if(!ctx||ctx.state==="closed"||ctx.state==="running"||typeof ctx.resume!=="function")return;try{var p=ctx.resume();if(p&&p.catch)p.catch(function(){})}catch(e){}}
- document.addEventListener("pointerdown",wakeAudio,true);document.addEventListener("visibilitychange",function(){if(!document.hidden)wakeAudio()});window.addEventListener("pageshow",wakeAudio);
+ function unlockRadioAudio(){try{ac();wakeAudio()}catch(e){}}
+ document.addEventListener("pointerdown",unlockRadioAudio,true);
+ document.addEventListener("touchstart",unlockRadioAudio,{capture:true,passive:true});
+ document.addEventListener("visibilitychange",function(){if(!document.hidden)wakeAudio()});window.addEventListener("pageshow",wakeAudio);
 function disp(){return cs()+(svcv()?" · "+svcv():"")}
 function sndEnd(){tone(1200,.12,.25,0,"sine");tone(950,.12,.25,.16,"sine");tone(700,.2,.25,.32,"sine");burst(.25,.4,.52,9)}
 function sndData(){for(var i=0;i<4;i++)tone(1400+(i%2)*500,.03,.18,i*.04,"square")}
@@ -3970,7 +4001,7 @@ main.app>.top>.brand{margin-left:3px!important}
 @media  (max-width: 860px) {
   body:not(.onboarding-active) main.app > .top {
     display:grid!important;
-    grid-template-columns:32px minmax(54px,1fr) 28px 28px 28px 30px 30px 30px!important;
+    grid-template-columns:32px minmax(54px,1fr) 42px 28px 28px 30px 30px 30px!important;
     grid-template-rows:34px 40px!important;
     grid-template-areas:"back brand net mic sound settings notes map" "switch switch switch switch switch switch switch switch"!important;
     column-gap:5px!important;row-gap:6px!important;padding:6px!important;
@@ -3982,9 +4013,18 @@ main.app>.top>.brand{margin-left:3px!important}
   main.app>.top>.brand h1{display:block!important;margin:0!important;font-size:10px!important;line-height:1!important;white-space:nowrap!important}
   main.app>.top>.brand .version{display:inline!important;font-size:10px!important;font-weight:800!important;opacity:.82!important;white-space:nowrap!important}
   main.app>.top>.tools>.network-status{grid-area:net!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;gap:3px!important;width:100%!important;min-width:0!important;margin:0!important;transform:none!important}
-  main.app>.top>.tools>.network-status>.sig{display:inline-flex!important;align-items:center!important;justify-content:center!important;width:17px!important;height:20px!important;flex:0 0 17px!important;margin:0!important}
-  main.app>.top>.tools>.network-status>.sig svg{width:16px!important;height:16px!important}
-  main.app>.top>.tools>.network-status>.chip{display:none!important}
+  main.app>.top>.tools>.network-status>.sig{display:none!important}
+  main.app>.top>.tools>.network-status>.chip{
+    display:inline-flex!important;align-items:center!important;justify-content:center!important;gap:5px!important;
+    width:auto!important;min-width:0!important;max-width:100%!important;padding:3px 3px!important;margin:0!important;
+    border:0!important;background:transparent!important;font-size:12px!important;line-height:1!important;white-space:nowrap!important;
+  }
+  main.app>.top>.tools>.network-status>.chip i{display:block!important;width:7px!important;height:7px!important;flex:0 0 7px!important}
+  main.app>.top>.tools>.network-status>.chip #net{
+    display:inline-block!important;width:auto!important;min-width:1ch!important;max-width:3ch!important;
+    overflow:visible!important;text-overflow:clip!important;text-align:center!important;
+    font-size:12px!important;font-weight:750!important;font-variant-numeric:tabular-nums!important;
+  }
   main.app>.top>.tools>.sig,main.app>.top>.tools>.chip,main.app>.top>.tools>.legacy-mode-switch,main.app>.top>.tools>#checkMicBtn{display:none!important}
   main.app>.top>.tools>.mic-indicator{grid-area:mic!important;width:26px!important;height:26px!important;min-width:26px!important;min-height:26px!important;margin:0!important}
   main.app>.top>.tools>.snd{grid-area:sound!important;width:26px!important;height:26px!important;min-width:26px!important;margin:0!important}
@@ -3998,7 +4038,7 @@ main.app>.top>.brand{margin-left:3px!important}
   main.app>.top>.tools>.view-switch .view-tab{width:100%!important;min-width:0!important;box-sizing:border-box!important;overflow:hidden!important}
 }
 @media  (max-width: 390px) {
-  body:not(.onboarding-active) main.app > .top{grid-template-columns:28px minmax(46px,1fr) 22px 25px 25px 27px 26px 26px!important;column-gap:3px!important;padding:5px!important}
+  body:not(.onboarding-active) main.app > .top{grid-template-columns:28px minmax(40px,1fr) 36px 25px 25px 27px 26px 26px!important;column-gap:3px!important;padding:5px!important}
   main.app>.top>.tools>.mic-indicator,main.app>.top>.tools>.snd{width:24px!important;height:24px!important;min-width:24px!important;min-height:24px!important}
   main.app>.top>.tools>#headerNotesBtn,main.app>.top>.tools>#mapBlocksBtn{width:26px!important;min-width:26px!important;max-width:26px!important;height:26px!important;min-height:26px!important}
 }
@@ -4825,7 +4865,7 @@ body.page-chat #actionChatPage{display:flex!important}
 @media (max-width:420px){.chat-message-time{font-size:8px}.chat-type-pill{font-size:8px}.chat-channel-header{padding-right:9px}.chat-report-grid{gap:6px 9px}.chat-report-field strong{font-size:10px}}
 @media (prefers-reduced-motion:reduce){.chat-message{animation:none!important}.chat-icon-btn,.chat-channel,.chat-send-btn,.chat-settings-entry{transition:none!important}}
 
-/* V.3.0.0 — Densité des embeds, salon Alertes ALPR/Radar et paramètres */
+/* V.3.0.0 — Densité des embeds, salon Alertes et paramètres */
 .chat-feed{align-items:flex-start}
 .chat-message{width:min(100%,780px);max-width:780px;box-sizing:border-box;flex:0 0 auto}
 .chat-message-top{gap:7px;padding:6px 9px 0}
@@ -4854,18 +4894,54 @@ body.page-chat #actionChatPage{display:flex!important}
 </style>
 
 
+
+<style id="mishap-v304-action-chat-observation">
+/* Salon Alertes : bouton Observation orange et embed dédié. */
+.chat-composer-area.chat-alert-civil .chat-civil-tools{grid-template-columns:repeat(3,minmax(0,1fr))!important}
+.chat-report-btn-observation{border-color:#a85e1b!important;background:linear-gradient(145deg,#55300f,#38200c)!important;color:#ffd09a!important}
+.chat-report-btn-observation:hover{border-color:#ed9a3b!important;background:linear-gradient(145deg,#714014,#4d2b0d)!important}
+.chat-report-btn-observation .chat-report-icon{border:1px solid #c77a2c;background:#8a4b16;color:#fff0d9}
+.chat-report-sheet.is-observation{border-color:#a85e1b;background:#1b160f}
+.chat-report-sheet.is-observation .chat-report-kicker{color:#f0a34e}
+.chat-report-sheet.is-observation label{color:#f0d1aa}
+.chat-report-sheet.is-observation input,
+.chat-report-sheet.is-observation textarea,
+.chat-report-sheet.is-observation select{border-color:#68451f;background:#100e0b}
+.chat-report-sheet.is-observation input:focus,
+.chat-report-sheet.is-observation textarea:focus,
+.chat-report-sheet.is-observation select:focus{outline-color:#e58a32}
+.chat-report-sheet.is-observation .chat-report-submit{border-color:#c47726;background:#a95b13;color:#fff}
+/* Même gabarit, densité et hiérarchie que les embeds Hit ALPR / Hit Radar ; accent orange dédié. */
+.chat-message.type-observation{
+  --action-accent:#e58a32;
+  border-left-color:#e58a32!important;
+  border-color:#74431f!important;
+  background:linear-gradient(110deg,#4a2a13,#261b13 80%)!important;
+  box-shadow:inset 3px 0 0 #e58a32,0 5px 16px #0003!important;
+}
+.chat-message.type-observation .chat-message-avatar{border-color:#b96c25;background:#63370f;color:#ffd39f}
+.chat-message.type-observation .chat-report-grid{gap:5px 12px;padding:5px 10px 5px}
+.chat-message.type-observation .chat-report-field span{color:#f0a34e}
+.chat-message.type-observation .chat-report-mention-field strong{border:1px solid #b96c25;background:#9a581f44;color:#ffd39f}
+.chat-message.type-observation .chat-message-footer{border-top-color:#6b431f55}
+@media(max-width:860px){
+  .chat-composer-area.chat-alert-civil .chat-civil-tools{grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:7px!important}
+  .chat-composer-area.chat-alert-civil .chat-report-btn-observation{gap:6px}
+}
+</style>
+
 <script id="mishap-v301-action-chat-script">
 (function(){
   'use strict';
   var $=function(id){return document.getElementById(id)};
-  var allowedTypes={me:1,do:1,it:1,hrp:1,plain:1,'hit-alpr':1,'hit-radar':1};
+  var allowedTypes={me:1,do:1,it:1,hrp:1,plain:1,'hit-alpr':1,'hit-radar':1,observation:1};
   var commandTypes={me:1,do:1,it:1,hrp:1};
   var channels={
     fdo:{name:'FDO'},
     civil1:{name:'Civil 1'},
     civil2:{name:'Civil 2'},
     civil3:{name:'Civil 3'},
-    observations:{name:'Alertes ALPR/Radar'}
+    observations:{name:'Alertes'}
   };
   var emojis=['✅','❌'];
   var bgPalette=[['#0a0c0f','Noir'],['#0b1426','Bleu nuit'],['#0a1710','Vert forêt'],['#1a0c10','Bordeaux'],['#140d20','Violet'],['#1c1f24','Gris anthracite']];
@@ -4877,7 +4953,7 @@ body.page-chat #actionChatPage{display:flex!important}
   var unreadKey='mishapActionChatUnreadV1_'+room;
   var unreadByChannel={};
   var state={messages:[],deleted:{}};
-  var settings={defaultType:'me',displayName:'',chatBg:'#0a0c0f',chatPanel:'#11141a'};
+  var settings={defaultType:'me',displayName:'',notificationMode:'all',chatBg:'#0a0c0f',chatPanel:'#11141a'};
   var selectedChannel='fdo',replyTo=null,editingId=null,composerType=null,mentionAnchor=null,reportKind='hit-alpr',settingsOpen=false;
   var identity={id:'local',name:'Unité',mode:'unit'};
 
@@ -4885,26 +4961,49 @@ body.page-chat #actionChatPage{display:flex!important}
   function save(){try{localStorage.setItem(storageKey,JSON.stringify({messages:state.messages.slice(-300),deleted:state.deleted}))}catch(e){}}
   function saveSettings(){try{localStorage.setItem(settingsKey,JSON.stringify(settings))}catch(e){}applyChatTheme();}
   function getIdentity(){try{if(core&&core.identity){var v=core.identity();if(v&&v.id)identity={id:String(v.id),name:String(v.name||'Unité'),mode:v.mode||'unit'}}}catch(e){}return identity}
-  function getDisplayName(){getIdentity();return String(settings.displayName||'').trim().slice(0,40)||identity.name||'Unité'}
+  function getDefaultDisplayName(){getIdentity();return identity.mode==='dispatch'||identity.mode==='civil'?'Civil':(String(identity.name||'Unité').trim()||'Unité')}
+  function getDisplayName(){var custom=String(settings.displayName||'').trim().slice(0,40);return custom||getDefaultDisplayName()}
   function getUsers(){try{if(core&&core.users)return core.users().filter(function(u){return u&&u.id&&u.name}).map(function(u){return {id:String(u.id),name:String(u.name),self:!!u.self,mode:u.mode||'unit'}})}catch(e){}return [Object.assign({},getIdentity(),{self:true})]}
   function isCivilPlayer(){getIdentity();return identity.mode==='dispatch'||identity.mode==='civil'}
   function unreadTotal(){return Object.keys(channels).reduce(function(total,key){return total+Math.max(0,Math.floor(+unreadByChannel[key]||0))},0)}
   function saveUnreadCount(){try{localStorage.setItem(unreadKey,JSON.stringify(unreadByChannel))}catch(e){}}
   function syncUnreadBadges(){
+    /* Les pastilles de lecture restent indépendantes du mode de notification. */
     var count=unreadTotal(),text=count>99?'99+':String(count),desktop=$('chatUnreadDesktop'),mobile=$('chatUnreadMobile');
-    [desktop,mobile].forEach(function(b){if(!b)return;b.textContent=text;b.hidden=count===0;b.setAttribute('aria-label',count+' notification'+(count>1?'s':'')+' du tchat')});
+    [desktop,mobile].forEach(function(b){if(!b)return;b.textContent=text;b.hidden=count===0;b.setAttribute('aria-label',count+' message'+(count>1?'s':'')+' non lu(s)')});
     if(desktop)desktop.hidden=count===0;
-    document.querySelectorAll('[data-channel-unread]').forEach(function(b){var n=Math.max(0,Math.floor(+unreadByChannel[b.getAttribute('data-channel-unread')]||0));b.textContent=n>99?'99+':String(n);b.hidden=n===0;b.setAttribute('aria-label',n+' notification'+(n>1?'s':'')+' non lue(s)')});
+    document.querySelectorAll('[data-channel-unread]').forEach(function(b){var n=Math.max(0,Math.floor(+unreadByChannel[b.getAttribute('data-channel-unread')]||0));b.textContent=n>99?'99+':String(n);b.hidden=n===0;b.setAttribute('aria-label',n+' message'+(n>1?'s':'')+' non lu(s)')});
   }
   function markChannelNotificationsRead(channel){if(channel&&unreadByChannel[channel]){delete unreadByChannel[channel];saveUnreadCount()}syncUnreadBadges()}
   function markChatNotificationsRead(){if(!settingsOpen)markChannelNotificationsRead(selectedChannel);else syncUnreadBadges()}
   function isChatConversationVisible(channel){if(!document.body.classList.contains('page-chat')||settingsOpen||channel!==selectedChannel)return false;var mobile=window.matchMedia&&window.matchMedia('(max-width: 860px)').matches;return !mobile||$('actionChatPage').classList.contains('chat-channel-open')}
-  function playChatNotificationSound(){try{if(typeof playToneCategory==='function'){playToneCategory('notif',1,true);return}var audio=$('notifAudio');if(audio){audio.pause();audio.currentTime=0;audio.volume=.65;var result=audio.play();if(result&&result.catch)result.catch(function(){})}}catch(e){}}
-  function notifyIncomingChatMessage(message){if(!message||message.authorId===identity.id)return;if(isChatConversationVisible(message.channel)){markChannelNotificationsRead(message.channel);return}unreadByChannel[message.channel]=Math.min(9999,(+unreadByChannel[message.channel]||0)+1);saveUnreadCount();syncUnreadBadges();playChatNotificationSound()}
+  function playChatNotificationSound(){
+    try{
+      if(typeof window.mishapPlayChatNotificationSound==='function'&&window.mishapPlayChatNotificationSound())return;
+      var audio=$('notifAudio');
+      if(audio){audio.pause();audio.currentTime=0;audio.volume=.65;var result=audio.play();if(result&&result.catch)result.catch(function(){})}
+    }catch(e){}
+  }
+  function notifyIncomingChatMessage(message){
+    if(!message)return;
+    getIdentity();
+    if(message.authorId===identity.id)return;
+    var mode=settings.notificationMode||'all';
+    var isMention=Array.isArray(message.mentions)&&message.mentions.some(function(m){return m&&String(m.id)===String(identity.id)});
+    /* Un message reçu dans la conversation affichée est immédiatement considéré comme lu. */
+    if(isChatConversationVisible(message.channel)){markChannelNotificationsRead(message.channel);return}
+    /* Toute réception non lue incrémente la pastille, même en mode Mention Seulement ou En Sourdine. */
+    unreadByChannel[message.channel]=Math.min(9999,(+unreadByChannel[message.channel]||0)+1);
+    saveUnreadCount();syncUnreadBadges();
+    /* Le réglage ne concerne que le son : tous, mentions uniquement ou aucun son. */
+    if(mode==='muted')return;
+    if(mode==='mentions'&&!isMention)return;
+    playChatNotificationSound();
+  }
   function initials(name){return String(name||'?').trim().split(/\s+/).slice(0,2).map(function(x){return x.charAt(0)}).join('').toUpperCase()||'?'}
   function validChannel(v){return Object.prototype.hasOwnProperty.call(channels,v)?v:null}
   function cleanMention(m){return {id:String(m&&m.id||'').slice(0,80),name:String(m&&m.name||'').slice(0,50)}}
-  function cleanReport(r){r=r&&typeof r==='object'?r:{};return {brand:String(r.brand||'').slice(0,80),plate:String(r.plate||'').slice(0,20),color:String(r.color||'').slice(0,40),details:String(r.details||'').slice(0,400)}}
+  function cleanReport(r){r=r&&typeof r==='object'?r:{};return {brand:String(r.brand||'').slice(0,80),plate:String(r.plate||'').slice(0,20),color:String(r.color||'').slice(0,40),details:String(r.details||'').slice(0,400),observation:String(r.observation||'').slice(0,500)}}
   function cleanMessage(m){
     if(!m||typeof m!=='object'||!m.id)return null;
     var type=allowedTypes[m.type]?m.type:'me',channel=validChannel(m.channel),reactions={};if(!channel)return null;
@@ -4913,7 +5012,7 @@ body.page-chat #actionChatPage{display:flex!important}
       if(ids.length)reactions[String(emoji).slice(0,8)]=Array.from(new Set(ids));
     });
     var item={id:String(m.id).slice(0,140),channel:channel,authorId:String(m.authorId||'').slice(0,80),authorName:String(m.authorName||'Unité').slice(0,60),type:type,text:String(m.text||'').slice(0,700),ts:+m.ts||Date.now(),updatedAt:+m.updatedAt||+m.ts||Date.now(),edited:!!m.edited,replyTo:m.replyTo?String(m.replyTo).slice(0,140):null,mentions:(Array.isArray(m.mentions)?m.mentions.slice(0,20).map(cleanMention):[]),reactions:reactions};
-    if(type==='hit-alpr'||type==='hit-radar')item.report=cleanReport(m.report);
+    if(type==='hit-alpr'||type==='hit-radar'||type==='observation')item.report=cleanReport(m.report);
     return item;
   }
   function load(){
@@ -4925,12 +5024,14 @@ body.page-chat #actionChatPage{display:flex!important}
     syncUnreadBadges();
     var pref=safeRead(settingsKey,{});if(pref&&commandTypes[pref.defaultType])settings.defaultType=pref.defaultType;
     if(pref&&typeof pref.displayName==='string')settings.displayName=pref.displayName.slice(0,40);
+    if(pref&&['all','mentions','muted'].indexOf(pref.notificationMode)>=0)settings.notificationMode=pref.notificationMode;
     if(pref&&/^#[0-9a-f]{6}$/i.test(pref.chatBg||''))settings.chatBg=pref.chatBg;
     if(pref&&/^#[0-9a-f]{6}$/i.test(pref.chatPanel||''))settings.chatPanel=pref.chatPanel;
+    syncUnreadBadges();
   }
   function switchRoom(nextRoom){
     var next=String(nextRoom||'default').replace(/[^a-zA-Z0-9_-]/g,'').slice(0,24)||'default';if(next===room)return;
-    room=next;storageKey='mishapActionChatV1_'+room;settingsKey='mishapActionChatSettingsV1_'+room;unreadKey='mishapActionChatUnreadV1_'+room;unreadByChannel={};state={messages:[],deleted:{}};settings={defaultType:'me',displayName:'',chatBg:'#0a0c0f',chatPanel:'#11141a'};replyTo=null;editingId=null;composerType=null;
+    room=next;storageKey='mishapActionChatV1_'+room;settingsKey='mishapActionChatSettingsV1_'+room;unreadKey='mishapActionChatUnreadV1_'+room;unreadByChannel={};state={messages:[],deleted:{}};settings={defaultType:'me',displayName:'',notificationMode:'all',chatBg:'#0a0c0f',chatPanel:'#11141a'};replyTo=null;editingId=null;composerType=null;
     load();syncSettingsControls();applyChatTheme();cancelReply();cancelEdit();render();updateCounter();syncUnreadBadges();
   }
   window.mishapActionChatRoomChanged=function(nextRoom){switchRoom(nextRoom||(core&&core.room?core.room():'default'))};
@@ -4999,21 +5100,23 @@ body.page-chat #actionChatPage{display:flex!important}
     window.addEventListener('scroll',closeOnViewportChange,true);
     positionPicker();
   }
-  function messagePreview(m){if(m.type==='hit-alpr'||m.type==='hit-radar')return (m.type==='hit-alpr'?'HIT ALPR':'HIT RADAR')+' · '+(m.report&&m.report.plate||'');return m.text||''}
+  function messagePreview(m){if(m.type==='hit-alpr'||m.type==='hit-radar')return (m.type==='hit-alpr'?'HIT ALPR':'HIT RADAR')+' · '+(m.report&&m.report.plate||'');if(m.type==='observation')return 'OBSERVATION · '+(m.report&&m.report.observation||'');return m.text||''}
   function makeReportField(parent,label,value,full){var box=document.createElement('div');box.className='chat-report-field'+(full?' full':'');var l=document.createElement('span');l.textContent=label;var v=document.createElement('strong');v.textContent=value||'—';box.appendChild(l);box.appendChild(v);parent.appendChild(box)}
   function makeReportMentionField(parent,mention){if(!mention||!mention.name)return;var box=document.createElement('div');box.className='chat-report-field chat-report-mention-field full';var label=document.createElement('span');label.textContent='FDO mentionné';var value=document.createElement('strong');value.textContent='@'+mention.name;box.appendChild(label);box.appendChild(value);parent.appendChild(box)}
   function makeMessage(m){
     var card=document.createElement('article');card.className='chat-message type-'+m.type;card.dataset.messageId=m.id;
-    var top=document.createElement('div');top.className='chat-message-top';var labels={me:'ACTION',do:'DO',it:'IT',hrp:'HRP','hit-alpr':'HIT ALPR','hit-radar':'HIT RADAR',plain:'MESSAGE'};var avatar=document.createElement('span');avatar.className='chat-message-avatar';avatar.textContent=labels[m.type]||'MESSAGE';var author=document.createElement('strong');author.className='chat-message-author';author.textContent=m.authorName;top.appendChild(avatar);top.appendChild(author);
+    var top=document.createElement('div');top.className='chat-message-top';var labels={me:'ACTION',do:'DO',it:'IT',hrp:'HRP','hit-alpr':'HIT ALPR','hit-radar':'HIT RADAR',observation:'OBSERVATION',plain:'MESSAGE'};var avatar=document.createElement('span');avatar.className='chat-message-avatar';avatar.textContent=labels[m.type]||'MESSAGE';var author=document.createElement('strong');author.className='chat-message-author';author.textContent=m.authorName;top.appendChild(avatar);top.appendChild(author);
     if(m.edited){var edited=document.createElement('span');edited.className='chat-edited';edited.textContent='modifié';top.appendChild(edited)}var time=document.createElement('time');time.className='chat-message-time';time.textContent=formatTime(m.ts);try{time.dateTime=new Date(m.ts).toISOString()}catch(e){}top.appendChild(time);card.appendChild(top);
     if(m.replyTo){var parent=getMessage(m.replyTo);if(parent){var quote=document.createElement('div');quote.className='chat-reply-quote';var qAuthor=document.createElement('strong');qAuthor.textContent=parent.authorName;var qText=document.createElement('span');qText.textContent=messagePreview(parent).slice(0,110);quote.appendChild(qAuthor);quote.appendChild(qText);card.appendChild(quote)}}
-    if(m.type==='hit-alpr'||m.type==='hit-radar'){
-      var report=cleanReport(m.report),grid=document.createElement('div');grid.className='chat-report-grid';makeReportField(grid,'Marque et modèle',report.brand,false);makeReportField(grid,'Plaque',report.plate,false);makeReportField(grid,'Couleur',report.color,false);makeReportField(grid,'Détails',report.details,true);if(m.mentions&&m.mentions.length)makeReportMentionField(grid,m.mentions[0]);card.appendChild(grid);
+    if(m.type==='hit-alpr'||m.type==='hit-radar'||m.type==='observation'){
+      var report=cleanReport(m.report),grid=document.createElement('div');grid.className='chat-report-grid'+(m.type==='observation'?' chat-observation-grid':'');
+      if(m.type==='observation'){makeReportField(grid,'Observation',report.observation,true)}else{makeReportField(grid,'Marque et modèle',report.brand,false);makeReportField(grid,'Plaque',report.plate,false);makeReportField(grid,'Couleur',report.color,false);makeReportField(grid,'Détails',report.details,true)}
+      if(m.mentions&&m.mentions.length)makeReportMentionField(grid,m.mentions[0]);card.appendChild(grid);
     }else{var body=document.createElement('div');body.className='chat-message-content';appendTextWithMentions(body,m.text,m.mentions);card.appendChild(body)}
     var footer=document.createElement('div');footer.className='chat-message-footer';var reactions=document.createElement('div');reactions.className='chat-reactions';
     Object.keys(m.reactions||{}).forEach(function(emoji){var users=m.reactions[emoji]||[];if(!users.length)return;var b=document.createElement('button');b.type='button';b.className='chat-reaction'+(users.indexOf(identity.id)>=0?' active':'');b.title='Ajouter ou retirer cette réaction';var e=document.createElement('span');e.textContent=emoji;var c=document.createElement('span');c.className='chat-reaction-count';c.textContent=String(users.length);b.appendChild(e);b.appendChild(c);b.addEventListener('click',function(){toggleReaction(m.id,emoji)});reactions.appendChild(b)});footer.appendChild(reactions);
     var tools=document.createElement('div');tools.className='chat-message-tools';var reply=iconButton('Répondre',icons.reply);reply.addEventListener('click',function(){startReply(m.id)});tools.appendChild(reply);var reactAnchor=document.createElement('span');reactAnchor.className='chat-reaction-anchor';var react=iconButton('Ajouter une réaction',icons.react);react.addEventListener('click',function(e){e.preventDefault();e.stopPropagation();createReactionPicker(m.id,react)});reactAnchor.appendChild(react);tools.appendChild(reactAnchor);
-    if(m.authorId===identity.id&&m.type!=='hit-alpr'&&m.type!=='hit-radar'){var edit=iconButton('Modifier le message',icons.edit);edit.addEventListener('click',function(){startEdit(m.id)});tools.appendChild(edit)}
+    if(m.authorId===identity.id&&m.type!=='hit-alpr'&&m.type!=='hit-radar'&&m.type!=='observation'){var edit=iconButton('Modifier le message',icons.edit);edit.addEventListener('click',function(){startEdit(m.id)});tools.appendChild(edit)}
     if(m.authorId===identity.id){var del=iconButton('Supprimer le message',icons.delete);del.addEventListener('click',function(){deleteMessage(m.id)});tools.appendChild(del)}footer.appendChild(tools);card.appendChild(footer);return card;
   }
   function render(){
@@ -5051,7 +5154,7 @@ body.page-chat #actionChatPage{display:flex!important}
   function cancelReply(){replyTo=null;$('chatReplyPreview').hidden=true}
   $('chatCancelReply').addEventListener('click',cancelReply);
   function updateCommandToken(){var chip=$('chatCommandToken');if(selectedChannel==='observations'||!commandTypes[composerType]){chip.hidden=true;chip.textContent='';chip.className='chat-command-token';return}chip.hidden=false;chip.textContent='/'+composerType;chip.className='chat-command-token type-'+composerType}
-  function startEdit(id){var m=getMessage(id);if(!m||m.authorId!==identity.id||m.type==='hit-alpr'||m.type==='hit-radar')return;editingId=id;cancelReply();composerType=commandTypes[m.type]?m.type:null;$('chatInput').value=m.text||'';$('chatEditPreview').hidden=false;updateCommandToken();resizeInput();updateCounter();$('chatInput').focus()}
+  function startEdit(id){var m=getMessage(id);if(!m||m.authorId!==identity.id||m.type==='hit-alpr'||m.type==='hit-radar'||m.type==='observation')return;editingId=id;cancelReply();composerType=commandTypes[m.type]?m.type:null;$('chatInput').value=m.text||'';$('chatEditPreview').hidden=false;updateCommandToken();resizeInput();updateCounter();$('chatInput').focus()}
   function cancelEdit(){editingId=null;$('chatEditPreview').hidden=true;$('chatInput').value='';composerType=null;updateCommandToken();resizeInput();updateCounter()}
   $('chatCancelEdit').addEventListener('click',cancelEdit);
   function detectComposerCommand(){if(selectedChannel==='observations')return;var input=$('chatInput'),match=/^\/(me|do|it|hrp)(?:\s+|$)/i.exec(input.value);if(!match)return;composerType=match[1].toLowerCase();input.value=input.value.slice(match[0].length);updateCommandToken();resizeInput();updateCounter()}
@@ -5075,20 +5178,53 @@ body.page-chat #actionChatPage{display:flex!important}
   function buildPalette(containerId,palette,key){var host=$(containerId);host.textContent='';palette.forEach(function(item){var b=document.createElement('button');b.type='button';b.className='chat-color-swatch';b.style.background=item[0];b.title=item[1];b.setAttribute('aria-label',item[1]);b.dataset.color=item[0];b.addEventListener('click',function(){settings[key]=item[0];saveSettings();syncPaletteState()});host.appendChild(b)})}
   function syncPaletteState(){[['chatBgPalette','chatBg'],['chatPanelPalette','chatPanel']].forEach(function(pair){var host=$(pair[0]);if(!host)return;Array.prototype.forEach.call(host.children,function(b){b.setAttribute('aria-pressed',String(b.dataset.color).toLowerCase()===String(settings[pair[1]]).toLowerCase()?'true':'false')})})}
   function applyChatTheme(){var page=$('actionChatPage');if(!page)return;page.style.setProperty('--chat-bg-custom',settings.chatBg||'#0a0c0f');page.style.setProperty('--chat-panel-custom',settings.chatPanel||'#11141a');syncPaletteState()}
-  function syncSettingsControls(){if($('chatDisplayName'))$('chatDisplayName').value=settings.displayName||'';if($('chatDefaultType'))$('chatDefaultType').value=settings.defaultType;applyChatTheme()}
+  function syncSettingsControls(){
+    if($('chatDisplayName')){$('chatDisplayName').value=settings.displayName||'';$('chatDisplayName').placeholder='Par défaut : '+getDefaultDisplayName()}
+    if($('chatDefaultType'))$('chatDefaultType').value=settings.defaultType;
+    if($('chatNotificationMode'))$('chatNotificationMode').value=settings.notificationMode||'all';
+    applyChatTheme();
+  }
   $('chatDisplayName').addEventListener('input',function(){settings.displayName=this.value.trim().slice(0,40);saveSettings()});
   $('chatDefaultType').addEventListener('change',function(){if(commandTypes[this.value]){settings.defaultType=this.value;saveSettings()}});
+  $('chatNotificationMode').addEventListener('change',function(){if(['all','mentions','muted'].indexOf(this.value)>=0){settings.notificationMode=this.value;saveSettings();syncUnreadBadges()}});
   buildPalette('chatBgPalette',bgPalette,'chatBg');buildPalette('chatPanelPalette',panelPalette,'chatPanel');
 
   function getConnectedFdoRecipients(){getIdentity();return getUsers().filter(function(u){return !u.self&&u.id!==identity.id&&u.mode==='unit'}).sort(function(a,b){return a.name.localeCompare(b.name,'fr')})}
   function updateReportTargetHint(){var select=$('chatReportTarget'),submit=$('chatReportSubmit'),hint=$('chatReportTargetHint');if(!select||!submit||!hint)return;var recipients=getConnectedFdoRecipients(),chosen=recipients.filter(function(u){return u.id===select.value})[0];submit.disabled=!chosen;if(chosen){hint.textContent='@'+chosen.name+' sera mentionné dans cette alerte.';hint.classList.add('is-ready')}else if(!recipients.length){hint.textContent='Pas de membre FDO connecté. Un FDO doit être en ligne pour publier cette alerte.';hint.classList.remove('is-ready')}else{hint.textContent='Sélectionne le FDO qui doit être mentionné pour publier cette alerte.';hint.classList.remove('is-ready')}}
   function updateReportTargetOptions(){var select=$('chatReportTarget');if(!select)return;var previous=select.value,recipients=getConnectedFdoRecipients();select.textContent='';var placeholder=document.createElement('option');placeholder.value='';placeholder.textContent=recipients.length?'Sélectionner un membre FDO…':'Pas de membre FDO connecté';select.appendChild(placeholder);recipients.forEach(function(u){var option=document.createElement('option');option.value=u.id;option.textContent=u.name;select.appendChild(option)});select.disabled=!recipients.length;select.value=recipients.some(function(u){return u.id===previous})?previous:'';updateReportTargetHint()}
   $('chatReportTarget').addEventListener('change',updateReportTargetHint);
-  function openReportForm(kind){if(!isCivilPlayer()||selectedChannel!=='observations')return;reportKind=kind==='hit-radar'?'hit-radar':'hit-alpr';$('chatReportTitle').textContent=reportKind==='hit-alpr'?'Nouveau hit ALPR':'Nouveau hit Radar';$('chatReportForm').reset();updateReportTargetOptions();$('chatReportModal').hidden=false;$('chatReportModal').setAttribute('aria-hidden','false');$('chatReportBrand').focus()}
+  function setReportFormMode(){
+    var observation=reportKind==='observation',vehicleFields=$('chatReportVehicleFields'),observationFields=$('chatObservationFields');
+    vehicleFields.hidden=observation;observationFields.hidden=!observation;$('chatReportForm').classList.toggle('is-observation',observation);
+    ['chatReportBrand','chatReportPlate','chatReportColor','chatReportDetails'].forEach(function(id){var field=$(id);field.disabled=observation;field.required=!observation});
+    $('chatReportObservation').disabled=!observation;$('chatReportObservation').required=observation;
+    $('chatReportTargetLabel').textContent='Mentionner un utilisateur FDO connecté [obligatoire]';
+    $('chatReportSubmit').textContent=observation?'Publier l’observation':'Publier le signalement';
+  }
+  function openReportForm(kind){
+    if(!isCivilPlayer()||selectedChannel!=='observations')return;
+    reportKind=kind==='hit-radar'?'hit-radar':kind==='observation'?'observation':'hit-alpr';
+    $('chatReportTitle').textContent=reportKind==='hit-alpr'?'Nouveau hit ALPR':reportKind==='hit-radar'?'Nouveau hit Radar':'Nouvelle observation';
+    $('chatReportForm').reset();setReportFormMode();updateReportTargetOptions();
+    $('chatReportModal').hidden=false;$('chatReportModal').setAttribute('aria-hidden','false');
+    (reportKind==='observation'?$('chatReportObservation'):$('chatReportBrand')).focus();
+  }
   function closeReportForm(){$('chatReportModal').hidden=true;$('chatReportModal').setAttribute('aria-hidden','true')}
-  $('chatHitAlprBtn').addEventListener('click',function(){openReportForm('hit-alpr')});$('chatRadarBtn').addEventListener('click',function(){openReportForm('hit-radar')});$('chatReportClose').addEventListener('click',closeReportForm);$('chatReportCancel').addEventListener('click',closeReportForm);
+  $('chatHitAlprBtn').addEventListener('click',function(){openReportForm('hit-alpr')});
+  $('chatRadarBtn').addEventListener('click',function(){openReportForm('hit-radar')});
+  $('chatObservationBtn').addEventListener('click',function(){openReportForm('observation')});
+  $('chatReportClose').addEventListener('click',closeReportForm);$('chatReportCancel').addEventListener('click',closeReportForm);
   $('chatReportModal').addEventListener('click',function(e){if(e.target===$('chatReportModal'))closeReportForm()});
-  $('chatReportForm').addEventListener('submit',function(e){e.preventDefault();if(!isCivilPlayer()||selectedChannel!=='observations'){closeReportForm();return}var recipients=getConnectedFdoRecipients(),target=recipients.filter(function(u){return u.id===$('chatReportTarget').value})[0];if(!target){updateReportTargetOptions();return}var report={brand:$('chatReportBrand').value.trim(),plate:$('chatReportPlate').value.trim().toUpperCase(),color:$('chatReportColor').value.trim(),details:$('chatReportDetails').value.trim()};if(!report.brand||!report.plate||!report.color||!report.details)return;var now=Date.now(),id=identity.id+':'+now.toString(36)+':'+Math.random().toString(36).slice(2,9);var message={id:id,channel:'observations',authorId:identity.id,authorName:getDisplayName(),type:reportKind,text:(reportKind==='hit-alpr'?'HIT ALPR':'HIT RADAR')+' · '+report.plate,report:report,ts:now,updatedAt:now,edited:false,replyTo:null,mentions:[{id:target.id,name:target.name}],reactions:{}};applyEvent({kind:'upsert',message:message},false);closeReportForm()});
+  $('chatReportForm').addEventListener('submit',function(e){
+    e.preventDefault();if(!isCivilPlayer()||selectedChannel!=='observations'){closeReportForm();return}
+    var recipients=getConnectedFdoRecipients(),target=recipients.filter(function(u){return u.id===$('chatReportTarget').value})[0];
+    if(!target){updateReportTargetOptions();return}
+    var observation=reportKind==='observation',report=observation?{observation:$('chatReportObservation').value.trim()}:{brand:$('chatReportBrand').value.trim(),plate:$('chatReportPlate').value.trim().toUpperCase(),color:$('chatReportColor').value.trim(),details:$('chatReportDetails').value.trim()};
+    if(observation?!report.observation:(!report.brand||!report.plate||!report.color||!report.details))return;
+    var now=Date.now(),id=identity.id+':'+now.toString(36)+':'+Math.random().toString(36).slice(2,9);
+    var message={id:id,channel:'observations',authorId:identity.id,authorName:getDisplayName(),type:reportKind,text:observation?'OBSERVATION':(reportKind==='hit-alpr'?'HIT ALPR':'HIT RADAR')+' · '+report.plate,report:report,ts:now,updatedAt:now,edited:false,replyTo:null,mentions:[{id:target.id,name:target.name}],reactions:{}};
+    applyEvent({kind:'upsert',message:message},false);closeReportForm();
+  });
   document.addEventListener('keydown',function(e){if(e.key==='Escape'&&!$('chatReportModal').hidden)closeReportForm()});
 
   function setAppPage(page){
