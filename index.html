@@ -929,6 +929,9 @@ html[data-radio-theme="light"] .panel,html[data-radio-theme="light"] .top{box-sh
       <div class="chat-channel-heading">
         <div class="chat-channel-title"><span class="chat-heading-hash" id="chatHeadingHash">#</span><strong id="chatChannelName">FDO</strong></div>
       </div>
+      <div class="chat-channel-actions">
+        <button class="chat-clear-action-btn" id="chatClearActionBtn" type="button" title="Effacer l’affichage du tchat Actions">Clear</button>
+      </div>
     </header>
 
     <div class="chat-conversation-view" id="chatConversationView">
@@ -4951,6 +4954,8 @@ body.page-chat #actionChatPage{display:flex!important}
   var storageKey='mishapActionChatV1_'+room;
   var settingsKey='mishapActionChatSettingsV1_'+room;
   var unreadKey='mishapActionChatUnreadV1_'+room;
+  var localClearKey='mishapActionChatLocalClearV1_'+room;
+  var localClearBefore=0;
   var unreadByChannel={};
   var state={messages:[],deleted:{}};
   var settings={defaultType:'me',displayName:'',notificationMode:'all',chatBg:'#0a0c0f',chatPanel:'#11141a'};
@@ -5011,12 +5016,13 @@ body.page-chat #actionChatPage{display:flex!important}
       var ids=Array.isArray(m.reactions[emoji])?m.reactions[emoji].map(function(x){return String(x).slice(0,80)}).filter(Boolean).slice(0,80):[];
       if(ids.length)reactions[String(emoji).slice(0,8)]=Array.from(new Set(ids));
     });
-    var item={id:String(m.id).slice(0,140),channel:channel,authorId:String(m.authorId||'').slice(0,80),authorName:String(m.authorName||'Unité').slice(0,60),type:type,text:String(m.text||'').slice(0,700),ts:+m.ts||Date.now(),updatedAt:+m.updatedAt||+m.ts||Date.now(),edited:!!m.edited,replyTo:m.replyTo?String(m.replyTo).slice(0,140):null,mentions:(Array.isArray(m.mentions)?m.mentions.slice(0,20).map(cleanMention):[]),reactions:reactions};
+    var item={id:String(m.id).slice(0,140),channel:channel,authorId:String(m.authorId||'').slice(0,80),authorName:String(m.authorName||'Unité').slice(0,60),authorMode:String(m.authorMode||'').slice(0,20),type:type,text:String(m.text||'').slice(0,700),ts:+m.ts||Date.now(),updatedAt:+m.updatedAt||+m.ts||Date.now(),edited:!!m.edited,replyTo:m.replyTo?String(m.replyTo).slice(0,140):null,mentions:(Array.isArray(m.mentions)?m.mentions.slice(0,20).map(cleanMention):[]),reactions:reactions};
     if(type==='hit-alpr'||type==='hit-radar'||type==='observation')item.report=cleanReport(m.report);
     return item;
   }
   function load(){
     var saved=safeRead(storageKey,{});if(saved&&Array.isArray(saved.messages))state.messages=saved.messages.map(cleanMessage).filter(Boolean).slice(-300);if(saved&&saved.deleted&&typeof saved.deleted==='object')state.deleted=saved.deleted;
+    var localClear=safeRead(localClearKey,{});localClearBefore=Math.max(0,+((localClear&&localClear.before)||0));
     var savedUnread=safeRead(unreadKey,{});unreadByChannel={};
     if(savedUnread&&typeof savedUnread==='object'&&!Array.isArray(savedUnread)){
       Object.keys(channels).forEach(function(key){var n=Math.max(0,Math.min(9999,parseInt(savedUnread[key],10)||0));if(n)unreadByChannel[key]=n});
@@ -5031,12 +5037,15 @@ body.page-chat #actionChatPage{display:flex!important}
   }
   function switchRoom(nextRoom){
     var next=String(nextRoom||'default').replace(/[^a-zA-Z0-9_-]/g,'').slice(0,24)||'default';if(next===room)return;
-    room=next;storageKey='mishapActionChatV1_'+room;settingsKey='mishapActionChatSettingsV1_'+room;unreadKey='mishapActionChatUnreadV1_'+room;unreadByChannel={};state={messages:[],deleted:{}};settings={defaultType:'me',displayName:'',notificationMode:'all',chatBg:'#0a0c0f',chatPanel:'#11141a'};replyTo=null;editingId=null;composerType=null;
+    room=next;storageKey='mishapActionChatV1_'+room;settingsKey='mishapActionChatSettingsV1_'+room;unreadKey='mishapActionChatUnreadV1_'+room;localClearKey='mishapActionChatLocalClearV1_'+room;localClearBefore=0;unreadByChannel={};state={messages:[],deleted:{}};settings={defaultType:'me',displayName:'',notificationMode:'all',chatBg:'#0a0c0f',chatPanel:'#11141a'};replyTo=null;editingId=null;composerType=null;
     load();syncSettingsControls();applyChatTheme();cancelReply();cancelEdit();render();updateCounter();syncUnreadBadges();
   }
   window.mishapActionChatRoomChanged=function(nextRoom){switchRoom(nextRoom||(core&&core.room?core.room():'default'))};
   function userMentions(text){var list=getUsers().filter(function(u){return !u.self&&u.id!==identity.id});return list.filter(function(u){return String(text).indexOf('@'+u.name)>=0}).map(function(u){return {id:u.id,name:u.name}}).slice(0,20)}
   function getMessage(id){return state.messages.filter(function(m){return m.id===id})[0]||null}
+  function isLocallyCleared(m){return !!(m&&localClearBefore&&(+m.ts||0)<=localClearBefore)}
+  function saveLocalClear(){try{localStorage.setItem(localClearKey,JSON.stringify({before:localClearBefore}))}catch(e){}}
+  function clearActionChatView(){getIdentity();if(!window.confirm('Effacer tous les messages du tchat Actions de votre affichage ? Les autres utilisateurs ne seront pas concernés.'))return;localClearBefore=Math.max(localClearBefore,Date.now());saveLocalClear();Object.keys(unreadByChannel).forEach(function(key){delete unreadByChannel[key]});saveUnreadCount();syncUnreadBadges();cancelReply();cancelEdit();render()}
   function upsert(m){var item=cleanMessage(m);if(!item)return false;var deletedAt=+state.deleted[item.id]||0;if(deletedAt>=item.updatedAt)return false;var i=state.messages.findIndex(function(x){return x.id===item.id});if(i>=0){if((+state.messages[i].updatedAt||0)>=item.updatedAt)return false;state.messages[i]=item}else state.messages.push(item);state.messages=state.messages.slice(-300);return true}
   function applyEvent(event,remote){
     if(!event||typeof event!=='object')return;var changed=false,incomingMessage=null;
@@ -5120,10 +5129,11 @@ body.page-chat #actionChatPage{display:flex!important}
     if(canDeleteMessage(m)){var isAlert=m.channel==='observations'&&['hit-alpr','hit-radar','observation'].indexOf(m.type)>=0;var del=iconButton(isAlert?'Supprimer l’alerte':'Supprimer le message',icons.delete);del.addEventListener('click',function(){deleteMessage(m.id)});tools.appendChild(del)}footer.appendChild(tools);card.appendChild(footer);return card;
   }
   function render(){
-    getIdentity();var feed=$('chatFeed');if(!feed)return;var oldTop=feed.scrollTop,stick=feed.scrollHeight-feed.scrollTop-feed.clientHeight<150;feed.textContent='';var messages=state.messages.filter(function(m){return m.channel===selectedChannel&&!state.deleted[m.id]}).sort(function(a,b){return a.ts-b.ts});
+    getIdentity();var feed=$('chatFeed');if(!feed)return;var oldTop=feed.scrollTop,stick=feed.scrollHeight-feed.scrollTop-feed.clientHeight<150;feed.textContent='';var messages=state.messages.filter(function(m){return m.channel===selectedChannel&&!state.deleted[m.id]&&!isLocallyCleared(m)}).sort(function(a,b){return a.ts-b.ts});
     if(!messages.length){var empty=document.createElement('div');empty.className='chat-empty-state';var h=document.createElement('h2');h.textContent='Aucun message dans ';var n=document.createElement('span');n.textContent='#'+channels[selectedChannel].name;h.appendChild(n);empty.appendChild(h);feed.appendChild(empty)}else messages.forEach(function(m){feed.appendChild(makeMessage(m))});
     document.querySelectorAll('.chat-channel').forEach(function(b){b.classList.toggle('active',!settingsOpen&&b.dataset.channel===selectedChannel)});
     $('chatSettingsEntry').classList.toggle('active',settingsOpen);
+    $('chatClearActionBtn').hidden=settingsOpen;
     $('chatMain').classList.toggle('chat-settings-open',settingsOpen);
     if(settingsOpen){
       $('chatChannelName').textContent='Paramètres du tchat';$('chatHeadingHash').hidden=true;
@@ -5147,9 +5157,11 @@ body.page-chat #actionChatPage{display:flex!important}
   $('chatSettingsEntry').addEventListener('click',openChatSettings);
   $('chatSettingsClose').addEventListener('click',closeChatSettings);
   $('chatBackToChannels').addEventListener('click',function(){if(settingsOpen){closeChatSettings();}else{$('actionChatPage').classList.remove('chat-channel-open')}});
+  $('chatClearActionBtn').addEventListener('click',clearActionChatView);
 
   function toggleReaction(messageId,emoji){getIdentity();var m=getMessage(messageId);if(!m)return;var ids=m.reactions[emoji]||[],add=ids.indexOf(identity.id)<0;applyEvent({kind:'reaction',messageId:messageId,emoji:emoji,userId:identity.id,add:add},false)}
-  function canDeleteMessage(m){getIdentity();if(!m||String(m.authorId||'')!==String(identity.id||''))return false;var isAlert=m.channel==='observations'&&['hit-alpr','hit-radar','observation'].indexOf(m.type)>=0;return !isAlert||isCivilPlayer()}
+  function isCivilAuthoredAlert(m){if(!m)return false;var mode=String(m.authorMode||'').toLowerCase();if(mode==='civil'||mode==='dispatch')return true;var author=getUsers().filter(function(u){return String(u.id)===String(m.authorId)})[0];if(author&&['civil','dispatch'].indexOf(String(author.mode||'').toLowerCase())>=0)return true;return String(m.authorName||'').trim().toLowerCase()==='civil'}
+  function canDeleteMessage(m){getIdentity();if(!m)return false;var isAlert=m.channel==='observations'&&['hit-alpr','hit-radar','observation'].indexOf(m.type)>=0;if(!isAlert)return String(m.authorId||'')===String(identity.id||'');if(!isCivilPlayer())return false;return String(m.authorId||'')===String(identity.id||'')||isCivilAuthoredAlert(m)}
   function deleteMessage(id){getIdentity();var m=getMessage(id);if(!canDeleteMessage(m))return;var isAlert=m.channel==='observations'&&['hit-alpr','hit-radar','observation'].indexOf(m.type)>=0;var prompt=isAlert?'Supprimer cette alerte pour tout le monde ?':'Supprimer ce message pour tout le monde ?';if(!window.confirm(prompt))return;applyEvent({kind:'delete',messageId:id,ts:Date.now()},false);if(editingId===id)cancelEdit()}
   function startReply(id){var m=getMessage(id);if(!m)return;replyTo=id;$('chatReplyAuthor').textContent=m.authorName;$('chatReplyText').textContent=messagePreview(m).slice(0,110);$('chatReplyPreview').hidden=false;$('chatInput').focus()}
   function cancelReply(){replyTo=null;$('chatReplyPreview').hidden=true}
@@ -5161,7 +5173,7 @@ body.page-chat #actionChatPage{display:flex!important}
   function detectComposerCommand(){if(selectedChannel==='observations')return;var input=$('chatInput'),match=/^\/(me|do|it|hrp)(?:\s+|$)/i.exec(input.value);if(!match)return;composerType=match[1].toLowerCase();input.value=input.value.slice(match[0].length);updateCommandToken();resizeInput();updateCounter()}
   function parseMessage(raw){var text=String(raw||'').trim();if(!text)return null;if(selectedChannel==='observations')return {type:'plain',text:text.slice(0,700)};var match=/^\/(me|do|it|hrp)(?:\s+|$)([\s\S]*)$/i.exec(text),type,body;if(match){type=match[1].toLowerCase();body=String(match[2]||'').trim()}else{type=commandTypes[composerType]?composerType:settings.defaultType;body=text}if(!body)return null;return {type:type,text:body.slice(0,700)}}
   function resetComposer(){var input=$('chatInput');input.value='';composerType=null;updateCommandToken();resizeInput();updateCounter();hideMentions()}
-  function sendMessage(){getIdentity();var input=$('chatInput'),parsed=parseMessage(input.value);if(!parsed){input.focus();return}if(editingId){var old=getMessage(editingId);if(!old||old.authorId!==identity.id){cancelEdit();return}var edited=Object.assign({},old,{type:parsed.type,text:parsed.text,mentions:userMentions(parsed.text),edited:true,updatedAt:Date.now()});applyEvent({kind:'upsert',message:edited},false);cancelEdit();return}var now=Date.now(),id=identity.id+':'+now.toString(36)+':'+Math.random().toString(36).slice(2,9);var message={id:id,channel:selectedChannel,authorId:identity.id,authorName:getDisplayName(),type:parsed.type,text:parsed.text,ts:now,updatedAt:now,edited:false,replyTo:replyTo,mentions:userMentions(parsed.text),reactions:{}};applyEvent({kind:'upsert',message:message},false);resetComposer();cancelReply()}
+  function sendMessage(){getIdentity();var input=$('chatInput'),parsed=parseMessage(input.value);if(!parsed){input.focus();return}if(editingId){var old=getMessage(editingId);if(!old||old.authorId!==identity.id){cancelEdit();return}var edited=Object.assign({},old,{type:parsed.type,text:parsed.text,mentions:userMentions(parsed.text),edited:true,updatedAt:Date.now()});applyEvent({kind:'upsert',message:edited},false);cancelEdit();return}var now=Date.now(),id=identity.id+':'+now.toString(36)+':'+Math.random().toString(36).slice(2,9);var message={id:id,channel:selectedChannel,authorId:identity.id,authorName:getDisplayName(),authorMode:identity.mode,type:parsed.type,text:parsed.text,ts:now,updatedAt:now,edited:false,replyTo:replyTo,mentions:userMentions(parsed.text),reactions:{}};applyEvent({kind:'upsert',message:message},false);resetComposer();cancelReply()}
   $('chatSendBtn').addEventListener('click',sendMessage);
   $('chatInput').addEventListener('keydown',function(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMessage()}else if(e.key==='Escape'){hideMentions();if(replyTo)cancelReply();if(editingId)cancelEdit()}else if(e.key==='Backspace'&&!$('chatInput').value&&composerType){e.preventDefault();composerType=null;updateCommandToken();updateCounter()}});
   $('chatInput').addEventListener('input',function(){detectComposerCommand();resizeInput();updateCounter();updateMentionAutocomplete()});
@@ -5223,7 +5235,7 @@ body.page-chat #actionChatPage{display:flex!important}
     var observation=reportKind==='observation',report=observation?{observation:$('chatReportObservation').value.trim()}:{brand:$('chatReportBrand').value.trim(),plate:$('chatReportPlate').value.trim().toUpperCase(),color:$('chatReportColor').value.trim(),details:$('chatReportDetails').value.trim()};
     if(observation?!report.observation:(!report.brand||!report.plate||!report.color||!report.details))return;
     var now=Date.now(),id=identity.id+':'+now.toString(36)+':'+Math.random().toString(36).slice(2,9);
-    var message={id:id,channel:'observations',authorId:identity.id,authorName:getDisplayName(),type:reportKind,text:observation?'OBSERVATION':(reportKind==='hit-alpr'?'HIT ALPR':'HIT RADAR')+' · '+report.plate,report:report,ts:now,updatedAt:now,edited:false,replyTo:null,mentions:[{id:target.id,name:target.name}],reactions:{}};
+    var message={id:id,channel:'observations',authorId:identity.id,authorName:getDisplayName(),authorMode:identity.mode,type:reportKind,text:observation?'OBSERVATION':(reportKind==='hit-alpr'?'HIT ALPR':'HIT RADAR')+' · '+report.plate,report:report,ts:now,updatedAt:now,edited:false,replyTo:null,mentions:[{id:target.id,name:target.name}],reactions:{}};
     applyEvent({kind:'upsert',message:message},false);closeReportForm();
   });
   document.addEventListener('keydown',function(e){if(e.key==='Escape'&&!$('chatReportModal').hidden)closeReportForm()});
@@ -5393,5 +5405,21 @@ body.page-chat #actionChatPage{display:flex!important}
 #viewChat .nav-unread-badge-mobile[hidden]{display:none!important}
 </style>
 
+
+<style id="mishap-action-chat-clear-and-mobile-fixes">
+.chat-channel-actions{display:flex;align-items:center;flex:0 0 auto;margin-left:auto}
+.chat-clear-action-btn{display:inline-flex;align-items:center;justify-content:center;min-width:64px;min-height:32px;padding:6px 12px;border:1px solid #c94b54;border-radius:7px;background:#8f252d;color:#fff;font-size:10px;font-weight:850;letter-spacing:.05em;cursor:pointer;box-shadow:0 2px 7px #0003;transition:background .15s,border-color .15s}
+.chat-clear-action-btn:hover{background:#b12e38;border-color:#f06b73}
+.chat-clear-action-btn[hidden]{display:none!important}
+.chat-clear-action-btn:focus-visible{outline:2px solid #ff8c92;outline-offset:2px}
+@media(max-width:860px){
+  .chat-channel-header{gap:8px;padding-left:12px;padding-right:12px}
+  .chat-clear-action-btn{min-width:58px;min-height:34px;padding:6px 9px}
+  .chat-civil-tools{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+  .chat-report-btn{box-sizing:border-box;min-width:0;width:100%;justify-content:center;padding-left:7px;padding-right:7px;gap:5px;white-space:nowrap}
+  .chat-report-btn-observation{grid-column:1/-1}
+  .chat-report-btn>span:last-child{min-width:0;white-space:nowrap}
+}
+</style>
 </body>
 </html>
